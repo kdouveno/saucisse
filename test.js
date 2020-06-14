@@ -1,6 +1,7 @@
-var hasher = s => s.split('').reduce((a,b)=>{a=((a<<5)-a)+b.charCodeAt(0);return a&a},0)
+const hasher = s => s.split('').reduce((a,b)=>{a=((a<<5)-a)+b.charCodeAt(0);return a&a},0)
 
-var un = v => typeof(v) === "undefined";
+const un = v => typeof(v) === "undefined";
+const M32SI = -(1<<31);
 
 class Rand
 {
@@ -10,21 +11,19 @@ class Rand
 		this.a = 16807;
 		this.b = 0;
 		this.m = 0x7FFFFFFF;
-		this.seed = (un(seed));
+		this.seed = (un(seed) ? 1 : hasher(""+seed));
 	}
 
 	generate(seed, limit, max)
 	{
-		if (typeof(seed) === "undefined")
-			seed = this.seed;
-		seed = hasher(seed);
-		seed = (this.a * seed + this.b) % this.m;
-		var out = (this.a * seed + this.b) % this.m;
-		out = (out / Number.MAX_SAFE_INTEGER)
-		if (!un(limit) && un(max))
-			out = ((out + 1) / 2) * limit;
-		else if (!un(max))
-			out = ((out + 1) / 2) * (max - limit) + limit;
+		console.log(typeof(seed));
+		
+		if (typeof(seed) !== "undefined")
+			this.seed = hasher(seed);
+		this.seed = (this.a * seed + this.b) % this.m;
+		var out = this.seed;
+		out = out % M32SI / M32SI;
+		
 		return out;
 	}
 };
@@ -76,6 +75,7 @@ class vector{
 		this.y /= norm;
 		return this;
 	}
+
 	multiply(scal) {
 		this.x *= scal;
 		this.y *= scal;
@@ -88,16 +88,28 @@ class PerlinNoise{
 		this.cellSize = cellSize;
 		this.seed = seed;
 		this.rand = new Rand();
+		this.dots = new Map();
 	}
 
 	gradient(w, x, y)
 	{
-		var rand = new Random(hasher(this.seed + "" + w + x + y));
+		var key = w + " " + x + " " + y;
+		if (this.dots.has(key))
+			return this.dots.get(key)
+		constr.strokeStyle = '#00ff00';
+		constr.beginPath();
+		constr.arc(x * this.cellSize, y * this.cellSize, 3, 0, 2 * Math.PI);
+		//var rand = new Random(hasher(this.seed + key));
 		var grad = new vector(
-			rand.nextFloat() * 2 - 1,
-			rand.nextFloat() * 2 - 1
+			this.rand.generate(this.seed + "x" + key, -.5, .5),
+			this.rand.generate(undefined, -.5, .5)
 		);
-		
+		constr.moveTo(this.cellSize * x, this.cellSize * y);
+		constr.lineTo(this.cellSize * (x + grad.x), this.cellSize * (y + grad.y));
+		constr.closePath();
+		constr.stroke();
+
+		this.dots.set(key, grad);
 		return (grad);
 	}
 
@@ -144,6 +156,35 @@ class PerlinNoise{
 		return value;
 	}
 }
+
+var el = document.getElementById("hauteur");
+var draw = el.getContext('2d');
+var constr = document.getElementById("construction").getContext("2d");
+var perlin = new PerlinNoise(16, "prout");
+for (var y = 0; y < 512; y++) {
+	for (var x = 0; x < 512; x++) {
+		var value = perlin.perlin("a", x, y);
+		value = ~~((value + 1) * 128);
+		draw.fillStyle = 'rgb('+value+', 0, 0)';
+		draw.fillRect(x, y, 1, 1);
+	}
+}
+// var x=0,y=0;
+// var inter = setInterval(()=>{
+// 		var value = perlin.perlin("a", x, y);
+// 		value = ~~((value + 1) * 128);
+// 		draw.fillStyle = 'rgb('+value+', 0, 0)';
+// 		draw.fillRect(x, y, 1, 1);
+// 		x++;
+// 		if (x > 512)
+// 		{
+// 			x = 0;
+// 			y++;
+// 			if (y > 512)
+// 				clearInterval(inter);
+// 		}
+// }, 0.0001)
+
 // // Function to linearly interpolate between a0 and a1
 // // Weight w should be in the range [0.0, 1.0]
 //  function lerp(float a0, float a1, float w) {
@@ -190,15 +231,3 @@ class PerlinNoise{
 
 // 	return value;
 // }
-var el = document.getElementById("hauteur");
-var draw = el.getContext('2d');
-var perlin = new PerlinNoise(32, "prout");
-for (var y = 0; y < 12; y++) {
-	for (var x = 0; x < 12; x++) {
-		var value = perlin.perlin("a", x, y);
-		value = ~~((value + 1) * 128);
-		draw.fillStyle = 'rgb('+value+', 0, 0)';
-		draw.fillRect(x, y, 1, 1);
-	}
-}
-
