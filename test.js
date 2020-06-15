@@ -12,18 +12,16 @@ class Rand
 		this.b = 0;
 		this.m = 0x7FFFFFFF;
 		this.seed = (un(seed) ? 1 : hasher(""+seed));
+		this.seedCounter = new Map();
 	}
 
 	generate(seed, limit, max)
 	{
-		console.log(typeof(seed));
-		
 		if (typeof(seed) !== "undefined")
 			this.seed = hasher(seed);
-		this.seed = (this.a * seed + this.b) % this.m;
+		this.seed = (this.a * this.seed + this.b) % this.m;
 		var out = this.seed;
 		out = out % M32SI / M32SI;
-		
 		return out;
 	}
 };
@@ -87,7 +85,6 @@ class PerlinNoise{
 	constructor(cellSize, seed) {
 		this.cellSize = cellSize;
 		this.seed = seed;
-		this.rand = new Rand();
 		this.dots = new Map();
 	}
 
@@ -99,10 +96,10 @@ class PerlinNoise{
 		constr.strokeStyle = '#00ff00';
 		constr.beginPath();
 		constr.arc(x * this.cellSize, y * this.cellSize, 3, 0, 2 * Math.PI);
-		//var rand = new Random(hasher(this.seed + key));
+		var rand = prng.Alea(this.seed, w, x, y);
 		var grad = new vector(
-			this.rand.generate(this.seed + "x" + key, -.5, .5),
-			this.rand.generate(undefined, -.5, .5)
+			rand() - .5,
+			rand() - .5
 		);
 		constr.moveTo(this.cellSize * x, this.cellSize * y);
 		constr.lineTo(this.cellSize * (x + grad.x), this.cellSize * (y + grad.y));
@@ -160,12 +157,20 @@ class PerlinNoise{
 var el = document.getElementById("hauteur");
 var draw = el.getContext('2d');
 var constr = document.getElementById("construction").getContext("2d");
-var perlin = new PerlinNoise(16, "prout");
+var perlin = new PerlinNoise(128, "pattern");
+var perlin2 = new PerlinNoise(32, "pattern");
+var perlin3 = new PerlinNoise(8, "pattern");
+
 for (var y = 0; y < 512; y++) {
 	for (var x = 0; x < 512; x++) {
 		var value = perlin.perlin("a", x, y);
 		value = ~~((value + 1) * 128);
-		draw.fillStyle = 'rgb('+value+', 0, 0)';
+		var value2 = perlin2.perlin("b", x, y);
+		value2 = ~~((value2) * 20);
+		var value3 = perlin3.perlin("c", x, y);
+		value3 = ~~((value3) * 20);
+		value += value2;
+		draw.fillStyle = 'rgb('+value+','+value+','+value+')';
 		draw.fillRect(x, y, 1, 1);
 	}
 }
