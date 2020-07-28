@@ -17,8 +17,10 @@ class Rand
 
 	generate(seed, limit, max)
 	{
-		if (typeof(seed) !== "undefined")
+		if (typeof(seed) === "string")
 			this.seed = hasher(seed);
+		else if(typeof(seed) === "number")
+			this.seed = seed;
 		this.seed = (this.a * this.seed + this.b) % this.m;
 		var out = this.seed;
 		out = out % M32SI / M32SI;
@@ -97,9 +99,12 @@ class PerlinNoise{
 		constr.beginPath();
 		constr.arc(x * this.cellSize, y * this.cellSize, 3, 0, 2 * Math.PI);
 		var rand = prng.Alea(this.seed, w, x, y);
+		var rand = [rand, rand(), rand()];
+		unifTest(randTest, rand[1], .1);
+		unifTest(randTest, rand[2], .1);
 		var grad = new vector(
-			rand() - .5,
-			rand() - .5
+			rand[1] - .5,
+			rand[2] - .5
 		);
 		constr.moveTo(this.cellSize * x, this.cellSize * y);
 		constr.lineTo(this.cellSize * (x + grad.x), this.cellSize * (y + grad.y));
@@ -110,15 +115,26 @@ class PerlinNoise{
 		return (grad);
 	}
 
+	dotValue(w, x, y) {
+		return prng.Alea(this.seed, w, x, y)();
+	}
+
 	dotGridGradient(w, xi, yi, x, y) {
 		
 		var vec = new vector(xi, yi, x, y);
-
+			
 		return vec.dotProduct(this.gradient(w, xi, yi));
 	}
 
 	lerp(a0, a1, w) {
 		return (1.0 - w)*a0 + w*a1;
+	}
+
+	cosint(a, b, t)
+	{
+		var c = (1 - Math.cos(t * 3.1415927)) * .5;
+
+		return (1. - c) * a + c * b;
 	}
 
 	perlin(w, x, y)
@@ -140,40 +156,67 @@ class PerlinNoise{
 		n1 = this.dotGridGradient(w, x1, y0, x, y);
 		// console.log(n0, n1);
 
-		ix0 = this.lerp(n0, n1, sx);
+		ix0 = this.cosint(n0, n1, sx);
 		
 		n0 = this.dotGridGradient(w, x0, y1, x, y);
 		n1 = this.dotGridGradient(w, x1, y1, x, y);
 		// console.log(n0, n1);
 
-		ix1 = this.lerp(n0, n1, sx);
-		value = this.lerp(ix0, ix1, sy);
+		ix1 = this.cosint(n0, n1, sx);
+		value = this.cosint(ix0, ix1, sy);
 		// console.log(ix0, ix1, value);
-
+		
 		return value;
 	}
 }
 
 var el = document.getElementById("hauteur");
+var el2 = document.getElementById("construction");
 var draw = el.getContext('2d');
-var constr = document.getElementById("construction").getContext("2d");
+var constr = el2.getContext("2d");
 var perlin = new PerlinNoise(128, "pattern");
 var perlin2 = new PerlinNoise(32, "pattern");
 var perlin3 = new PerlinNoise(8, "pattern");
-
+var perlin4 = new PerlinNoise(4, "pattern");
+var rangetest = new Map();
+var randTest = new Map();
+var unifTest = function(map, value, rng) {
+	var min = map.get('min') ?? 0;
+	var max = map.get('max') ?? 0;
+	if (value > max) map.set('max', value)
+	else if (value < min) map.set('min', value);
+	if (!rng) rng = .2;
+	var nrng = ~~(value / rng);
+	var id = nrng * rng + "><" + (((value <= 0 ? -1 : 1) + nrng) * rng);
+	if (map.has(id))
+		map.get(id).push(value);
+	else
+		map.set(id, [value]);
+}
 for (var y = 0; y < 512; y++) {
 	for (var x = 0; x < 512; x++) {
-		var value = perlin.perlin("a", x, y);
-		value = ~~((value + 1) * 128);
+		var value1 = perlin.perlin("a", x, y);
+		value = ~~((value1 + 0.7) * .8 * 256);
+		unifTest(rangetest, value, 16);
+
 		var value2 = perlin2.perlin("b", x, y);
-		value2 = ~~((value2) * 20);
+		value2 = value2 * 10 - 5;
 		var value3 = perlin3.perlin("c", x, y);
-		value3 = ~~((value3) * 20);
+		value3 = value3 * 20 * value1;
+		var value4 = perlin4.perlin("d", x, y);
+		value4 = value4 * 30 * value1;
 		value += value2;
-		draw.fillStyle = 'rgb('+value+','+value+','+value+')';
+		value += value3;
+		value += value4;
+		draw.fillStyle = 'rgb(' + value + ',' + value + ',' + value + ')';
 		draw.fillRect(x, y, 1, 1);
 	}
 }
+el2.addEventListener("click", e=>{
+	console.log(e);
+	var value = perlin.perlin("a", e.clientX, e.clientY);
+	console.log(value);
+});
 // var x=0,y=0;
 // var inter = setInterval(()=>{
 // 		var value = perlin.perlin("a", x, y);
